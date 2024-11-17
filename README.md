@@ -5,6 +5,7 @@
 1. Assemble the code:
 
 ``` nasm -f elf64 <filename>.asm -o <filename>.o  ```
+
 2. Link the object file:
 
 ``` ld <filename>.o -o <filename>  ```
