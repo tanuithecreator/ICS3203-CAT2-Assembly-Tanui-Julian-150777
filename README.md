@@ -9,10 +9,12 @@
 2. Link the object file:
 
 ``` ld <filename>.o -o <filename>  ```
+
 3. Run the executable:
 
 ``` ./<filename>  ```
-Replace ```<filename>``` with the specific task file (e.g., task1, task2, etc.).
+
+- Replace ```<filename>``` with the specific task file (e.g., task1, task2, etc.).
 
 
 ### TASK 1
