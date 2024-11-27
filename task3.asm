@@ -1,102 +1,139 @@
-section .bss
-    input resb 5        ; Buffer for user input (uninitialized)
-    result resd 1       ; Space to store the factorial result
-    res_str resb 10     ; Buffer for the result string (uninitialized)
-
 section .data
-    prompt db "Enter a number: ", 0 ; Input prompt
-    result_msg db "Factorial: ", 0  ; Output prefix
-    newline db 10, 0                ; Newline character
+    prompt          db 'Enter a number (0-12): ', 0
+    result_msg      db 'Factorial is: ', 0
+    newline         db 10, 0
+    input_buffer    db 10 dup(0)         ; Buffer for user input
+    result_buffer   db 20 dup(0)         ; Buffer for result output
+
+section .bss
+    ; Empty for this program
 
 section .text
-    global _start
+global _start
 
 _start:
-    ; Print prompt
-    mov eax, 4                      ; System call number (write)
-    mov ebx, 1                      ; File descriptor (stdout)
-    mov ecx, prompt                 ; Message to print
-    mov edx, 17                     ; Length of message
-    int 0x80                        ; System call
+    ; Display prompt
+    mov     rax, 1                  ; sys_write
+    mov     rdi, 1                  ; stdout
+    mov     rsi, prompt
+    mov     rdx, 22                 ; Length of the prompt
+    syscall
 
-    ; Read input
-    mov eax, 3                      ; System call number (read)
-    mov ebx, 0                      ; File descriptor (stdin)
-    mov ecx, input                  ; Buffer to store input
-    mov edx, 5                      ; Max number of bytes to read
-    int 0x80                        ; System call
+    ; Read user input
+    mov     rax, 0                  ; sys_read
+    mov     rdi, 0                  ; stdin
+    mov     rsi, input_buffer
+    mov     rdx, 10                 ; Max input size
+    syscall
 
-    ; Convert input (ASCII to integer)
-    mov eax, 0                      ; Clear eax (accumulator for the number)
-    mov esi, input                  ; Pointer to the input buffer
-convert_loop:
-    movzx ebx, byte [esi]           ; Load one byte from input
-    cmp bl, 10                      ; Check for newline (ASCII 10)
-    je compute_factorial            ; Jump if newline
-    sub bl, '0'                     ; Convert ASCII to numeric value
-    imul eax, eax, 10               ; Multiply accumulator by 10
-    add eax, ebx                    ; Add numeric value to accumulator
-    inc esi                         ; Move to next character
-    jmp convert_loop                ; Repeat loop
+    ; Convert input to integer
+    mov     rsi, input_buffer       ; Pass input buffer
+    call    atoi                    ; Result in RAX
 
-compute_factorial:
-    push eax                        ; Push number to stack
-    call factorial                  ; Call factorial subroutine
-    mov [result], eax               ; Store result in memory
+    ; Validate input (number between 0 and 12)
+    cmp     rax, 12
+    ja      invalid_input
+    cmp     rax, 0
+    jl      invalid_input
+
+    ; Calculate factorial
+    push    rax                     ; Push input number onto stack
+    call    factorial
+    add     rsp, 8                  ; Clean up stack
+
+    ; RAX now contains the factorial result
 
     ; Convert result to string
-    mov eax, [result]               ; Load result into eax
-    mov edi, res_str + 9            ; Point to the end of the buffer
-    mov byte [edi], 0               ; Null-terminate string
-convert_result:
-    xor edx, edx                    ; Clear edx for division
-    mov ebx, 10                     ; Divisor (base 10)
-    div ebx                         ; eax = eax / 10, edx = remainder
-    add dl, '0'                     ; Convert remainder to ASCII
-    dec edi                         ; Move buffer pointer backwards
-    mov [edi], dl                   ; Store ASCII character
-    test eax, eax                   ; Check if quotient is zero
-    jnz convert_result              ; Repeat if not zero
+    mov     rsi, result_buffer      ; Buffer for the result
+    call    itoa
 
-    ; Print result message
-    mov eax, 4                      ; System call number (write)
-    mov ebx, 1                      ; File descriptor (stdout)
-    mov ecx, result_msg             ; Message to print
-    mov edx, 10                     ; Length of message
-    int 0x80                        ; System call
+    ; Display result message
+    mov     rax, 1                  ; sys_write
+    mov     rdi, 1                  ; stdout
+    mov     rsi, result_msg
+    mov     rdx, 14                 ; Length of the message
+    syscall
 
-       ; Print result
-    mov eax, 4                 ; System call number (write)
-    mov ebx, 1                 ; File descriptor (stdout)
-    mov ecx, edi               ; Pointer to the result string
-    lea esi, res_str + 9       ; Load address of res_str + 9 into ESI
-    sub esi, edi               ; Calculate length of the result string
-    mov edx, esi               ; Move length into EDX
-    int 0x80                   ; System call
+    ; Display result
+    mov     rax, 1                  ; sys_write
+    mov     rdi, 1                  ; stdout
+    mov     rsi, result_buffer
+    mov     rdx, 20                 ; Assume max length
+    syscall
 
-    ; Print newline
-    mov eax, 4                      ; System call number (write)
-    mov ebx, 1                      ; File descriptor (stdout)
-    mov ecx, newline                ; Newline character
-    mov edx, 1                      ; Length of newline
-    int 0x80                        ; System call
+    ; Newline
+    mov     rax, 1                  ; sys_write
+    mov     rdi, 1                  ; stdout
+    mov     rsi, newline
+    mov     rdx, 1
+    syscall
 
     ; Exit program
-    mov eax, 1                      ; System call number (exit)
-    xor ebx, ebx                    ; Exit status 0
-    int 0x80                        ; System call
+    mov     rax, 60                 ; sys_exit
+    xor     rdi, rdi
+    syscall
 
+invalid_input:
+    ; Print an error message and exit
+    mov     rax, 1                  ; sys_write
+    mov     rdi, 1                  ; stdout
+    mov     rsi, newline
+    mov     rdx, 22                 ; Error message
+    syscall
+    mov     rax, 60                 ; sys_exit
+    xor     rdi, rdi
+    syscall
+
+; Subroutine: Factorial Calculation
 factorial:
-    ; Calculate factorial
-    pop ecx                         ; Load input number into ecx
-    mov eax, 1                      ; Initialize result
-
+    mov     rbx, 1                  ; Initialize result in RBX
+    cmp     rax, 0                  ; If input is 0, return 1
+    je      factorial_end
 factorial_loop:
-    cmp ecx, 0                      ; Check if counter is 0
-    je factorial_end                ; End loop if done
-    mul ecx                         ; Multiply eax by ecx
-    dec ecx                         ; Decrement counter
-    jmp factorial_loop              ; Repeat loop
-
+    imul    rbx, rax                ; RBX = RBX * RAX
+    dec     rax                     ; Decrement RAX
+    jnz     factorial_loop
 factorial_end:
+    mov     rax, rbx                ; Return result in RAX
+    ret
+
+; Subroutine: ASCII to Integer Conversion (atoi)
+atoi:
+    xor     rax, rax                ; Clear RAX
+    xor     rcx, rcx                ; RCX for multiplier (10^n)
+    mov     rcx, 10
+
+atoi_loop:
+    movzx   rdx, byte [rsi]         ; Load next character
+    cmp     rdx, 10                 ; Check for newline
+    je      atoi_done
+    sub     rdx, '0'                ; Convert ASCII to digit
+    imul    rax, rcx                ; Multiply current result by 10
+    add     rax, rdx                ; Add digit to result
+    inc     rsi
+    jmp     atoi_loop
+
+atoi_done:
+    ret
+
+; Subroutine: Integer to ASCII Conversion (itoa)
+itoa:
+    xor     rcx, rcx                ; Counter for digits
+itoa_loop:
+    xor     rdx, rdx                ; Clear RDX
+    mov     rbx, 10
+    div     rbx                     ; Divide RAX by 10
+    add     dl, '0'                 ; Convert remainder to ASCII
+    push    rdx                     ; Store digit on stack
+    inc     rcx
+    test    rax, rax                ; Check if RAX is 0
+    jnz     itoa_loop
+
+itoa_pop:
+    pop     rdx                     ; Get digit from stack
+    mov     [rsi], dl               ; Store it in buffer
+    inc     rsi
+    loop    itoa_pop
+
+    mov     byte [rsi], 0           ; Null-terminate the string
     ret
