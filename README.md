@@ -43,7 +43,7 @@ This program accepts an array of integers as input and reverses the array in pla
 - Using registers for pointer arithmetic minimizes memory operations and improves efficiency.
 - Dividing the array length by 2 to limit iterations was an efficient approach to prevent redundant swaps.
 
-#### Task 3: Modular Program with Subroutines for Factorial Calculation
+### Task 3: Modular Program with Subroutines for Factorial Calculation
 #### Overview
 - This program calculates the factorial of a user-input number using a modular subroutine. The subroutine uses the stack to preserve registers and employs multiplication in a loop to compute the factorial.
 
